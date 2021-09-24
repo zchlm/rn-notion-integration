@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^0.3.2",
+    "bull": "^3.29.2",
+    "moment": "^2.29.1"
+  },
+  "devDependencies": {
+    "@types/bull": "^3.15.4",
+    "prettier": "^2.4.0"
+  }
+}
