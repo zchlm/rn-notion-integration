@@ -1,4 +1,4 @@
-// TODO assume this runs every day
+// TODO this will run UTC midnight at end of invoice fortnight cycle
 
 const { Client } = require("@notionhq/client");
 const moment = require("moment");
@@ -19,17 +19,9 @@ const fortnightEndDate = moment(fortnightStartDate).add(14, "days");
 const invoicePeriodFilter =
   fortnightStartDate.format("MMM D - ") + fortnightEndDate.format("MMM D");
 
-(async () => {
-  try {
-    const members = await getMemberIds();
-    members.forEach((id) => {
-      handle(id);
-    });
-  } catch (error) {
-    // todo: try again in x minutes
-    console.error(error);
-  }
-})();
+function timeout(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function getMemberIds() {
   const invoices = await notion.databases.query({
@@ -53,11 +45,37 @@ async function getMemberIds() {
   return members.filter((item, pos) => members.indexOf(item) === pos);
 }
 
-function timeout(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+async function automateInvoice(user_id) {
+  // Query invoices in this pay-cycle
+  const invoices = await notion.databases.query({
+    database_id: "d56a7b0466aa496ca84b1db1f4b1844b", // Invoices database
+    filter: {
+      and: [
+        {
+          property: "Invoice Period",
+          formula: {
+            text: {
+              equals: invoicePeriodFilter,
+            },
+          },
+        },
+        {
+          property: "Related to Tasks",
+          relation: {
+            is_empty: true,
+          },
+        },
+        {
+          property: "Created By",
+          people: {
+            contains: user_id,
+          },
+        },
+      ],
+    },
+  });
+  if (invoices.results.length <= 0) return;
 
-async function handle(user_id) {
   // Query tasks database
   const tasks = await notion.databases.query({
     database_id: "ed4361f28cab4cb38686d835a640ae42", // Tasks database
@@ -79,29 +97,6 @@ async function handle(user_id) {
         },
         {
           property: "Members",
-          people: {
-            contains: user_id,
-          },
-        },
-      ],
-    },
-  });
-
-  // Query invoices in this pay-cycle
-  const invoices = await notion.databases.query({
-    database_id: "d56a7b0466aa496ca84b1db1f4b1844b", // Invoices database
-    filter: {
-      and: [
-        {
-          property: "Invoice Period",
-          formula: {
-            text: {
-              equals: invoicePeriodFilter,
-            },
-          },
-        },
-        {
-          property: "Created By",
           people: {
             contains: user_id,
           },
@@ -135,27 +130,46 @@ async function handle(user_id) {
 
     const blocks = response.results;
 
-    // Delete un-needed database and heading
-    // Relies on Invoice template to have:
-    // Database - to delete
-    // Heading 3 - separator / for reference
-    const headingIndex = blocks.findIndex((b) => b.type === "heading_3");
-    const headingId =
-      (blocks[headingIndex] && blocks[headingIndex].id) || false;
-    const databaseIndex =
-      (blocks[headingIndex - 1] && blocks[headingIndex - 1].id) || false;
+    // Delete un-needed database
+    // Relies on Invoice template to end with blocks:
+    // - Database (Tasks filtered by last month and invoiced)
+    // - Paragraph
+    // - Database (The related to tasks filtered database)
 
-    // Skip in loop if neither blocks are found
-    if (headingIndex < 0 || databaseIndex < 0) return;
-
-    const headingResponse = await notion.blocks.delete({
-      block_id: headingId,
-    });
-    console.log(headingResponse);
+    if (
+      blocks[blocks.length - 1].type !== "unsupported" ||
+      blocks[blocks.length - 2].type !== "paragraph" ||
+      blocks[blocks.length - 3].type !== "unsupported"
+    ) {
+      // Not correct format
+      return;
+    }
 
     const databaseResponse = await notion.blocks.delete({
-      block_id: databaseIndex,
+      block_id: blocks[blocks.length - 3].id,
     });
-    console.log(databaseResponse);
+
+    const paragraphResponse = await notion.blocks.delete({
+      block_id: blocks[blocks.length - 2].id,
+    });
   }
 }
+
+async function handle() {
+  try {
+    const members = await getMemberIds();
+    for (const id of members) {
+      await automateInvoice(id);
+    }
+  } catch (error) {
+    console.error(error);
+    // try again after 3 minutes
+    await timeout(3 * 1000);
+    await handle();
+  }
+}
+
+(async () => {
+  await handle();
+  console.log("~~ Done ~~");
+})();
