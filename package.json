@@ -3,8 +3,8 @@
     "start": "node src/index.js"
   },
   "dependencies": {
-    "@notionhq/client": "^0.3.2",
-    "bull": "^3.29.2",
+    "@notionhq/client": "^0.4.12",
+    "bull": "^4.2.0",
     "moment": "^2.29.1"
   },
   "devDependencies": {
