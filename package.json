@@ -7,7 +7,7 @@
   "scripts": {
     "start": "tsc && node dist/index.js",
     "build": "tsc",
-    "start-cron": "tsc && node dist/queue.js",
+    "start-cron": "node dist/queue.js",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
