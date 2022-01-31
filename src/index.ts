@@ -26,22 +26,36 @@ const notion = new NotionClient()
 
 // const today = moment()
 
+// todo: within minute changes and sync doesn't work
+// todo: solution: if they are same time, full update and set last sync to time + 1 minute or something else and we need another conditional to filter out!
+
+let full_sync = false
+
 function filterTasks(tasks) {
+  // console.log("-- Filter tasks -- ")
   return tasks.filter((task) => {
+    // console.log(util.inspect(task.properties, false, null, true))
+
     // @ts-ignore
     if (!task.properties["Last Synced"].date) {
       return true
-      // @ts-ignore
     } else {
       // @ts-ignore
       const d1 = moment(task.properties["Last Synced"].date.start).utc()
       // @ts-ignore
       const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
 
+      console.log(d2.diff(d1, "minutes"))
+      if (d2.diff(d1, "minutes") == -1) {
+        return false
+      }
+
       // console.log(d2.diff(d1, "minutes"))
       // if (d2.diff(d1, "minutes") <= 1) {
       if (d2.isSame(d1)) {
-        return false
+        // Full sync this time
+        full_sync = true
+        return true
       }
     }
 
@@ -151,7 +165,8 @@ async function syncTasksWithRN(clientTasks) {
             type: "text",
             text: {
               content:
-                "Brief (From Client) - Updated: " + moment().toISOString(),
+                "Brief (From Client) - Updated: " +
+                moment().utc().startOf("minute").toISOString(),
             },
           },
         ],
@@ -172,7 +187,9 @@ async function syncTasksWithRN(clientTasks) {
   await updatePageProps(notion, clientSecret, clientTasks, {
     "Last Synced": {
       date: {
-        start: moment().utc().toISOString(),
+        start: full_sync
+          ? moment().utc().add(1, "minute").toISOString()
+          : moment().utc().toISOString(),
       },
     },
   })
@@ -277,7 +294,7 @@ async function syncTasksWithClient(RNTasks) {
                 text: {
                   content:
                     "Deliverables (From Rational Nomads) - Updated: " +
-                    moment().toISOString(),
+                    moment().utc().startOf("minute").toISOString(),
                 },
               },
             ],
@@ -306,7 +323,7 @@ async function syncTasksWithClient(RNTasks) {
                     text: {
                       content:
                         "Deliverables (From Rational Nomads) - Updated: " +
-                        moment().toISOString(),
+                        moment().utc().startOf("minute").toISOString(),
                     },
                   },
                 ],
@@ -322,7 +339,9 @@ async function syncTasksWithClient(RNTasks) {
   await updatePageProps(notion, rationalSecret, RNTasks, {
     "Last Synced": {
       date: {
-        start: moment().utc().toISOString(),
+        start: full_sync
+          ? moment().utc().add(1, "minute").toISOString()
+          : moment().utc().toISOString(),
       },
     },
   })
