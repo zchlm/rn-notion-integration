@@ -1,1 +1,1 @@
-worker: npm start-cron
+worker: npm run start-cron
