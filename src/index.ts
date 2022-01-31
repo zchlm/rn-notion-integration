@@ -450,7 +450,7 @@ async function createTaskRN(notion: NotionClient, task) {
   // return
 }
 
-;(async function main() {
+export async function main() {
   // todo: handle errors and write to error log
   const clientTasks = await retrieveClientTasks(notion)
 
@@ -495,7 +495,8 @@ async function createTaskRN(notion: NotionClient, task) {
 
   // RN -> Client sync
   await syncTasksWithClient(RNTasksFiltered)
-})()
+  console.log("Finished")
+}
 
 /*
 function timeout(ms) {
