@@ -6,15 +6,14 @@ import {
 } from "./utils"
 import { Client as NotionClient } from "@notionhq/client"
 import moment from "moment"
-import util from "util"
-
+// import util from "util"
 import {
+  clientBotUserID,
   clientDatabaseId,
   clientSecret,
   rationalDatabaseId,
   rationalSecret,
   rationalTaskTemplatePageId,
-  clientBotUserID,
 } from "./config"
 
 // Construct our notion API client instance
@@ -25,7 +24,7 @@ const notion = new NotionClient()
 // https://www.notion.so/<workspace>/<page id>#<block id>
 // const calloutBlockId = "<The ID of the callout block we want to sync>";
 
-const today = moment()
+// const today = moment()
 
 function filterTasks(tasks) {
   return tasks.filter((task) => {
@@ -151,7 +150,8 @@ async function syncTasksWithRN(clientTasks) {
           {
             type: "text",
             text: {
-              content: "Brief (From Client) - Updated: " + today.toISOString(),
+              content:
+                "Brief (From Client) - Updated: " + moment().toISOString(),
             },
           },
         ],
@@ -172,7 +172,7 @@ async function syncTasksWithRN(clientTasks) {
   await updatePageProps(notion, clientSecret, clientTasks, {
     "Last Synced": {
       date: {
-        start: today.utc().toISOString(),
+        start: moment().utc().toISOString(),
       },
     },
   })
@@ -205,7 +205,7 @@ async function syncTasksWithClient(RNTasks) {
     const propertySchemas = {
       "Last Synced": {
         date: {
-          start: today.utc().toISOString(),
+          start: moment().utc().toISOString(),
         },
       },
     }
@@ -277,7 +277,7 @@ async function syncTasksWithClient(RNTasks) {
                 text: {
                   content:
                     "Deliverables (From Rational Nomads) - Updated: " +
-                    today.toISOString(),
+                    moment().toISOString(),
                 },
               },
             ],
@@ -306,7 +306,7 @@ async function syncTasksWithClient(RNTasks) {
                     text: {
                       content:
                         "Deliverables (From Rational Nomads) - Updated: " +
-                        today.toISOString(),
+                        moment().toISOString(),
                     },
                   },
                 ],
@@ -322,7 +322,7 @@ async function syncTasksWithClient(RNTasks) {
   await updatePageProps(notion, rationalSecret, RNTasks, {
     "Last Synced": {
       date: {
-        start: today.utc().toISOString(),
+        start: moment().utc().toISOString(),
       },
     },
   })
@@ -362,7 +362,7 @@ async function createTaskRN(notion: NotionClient, task) {
       },
       "Last Synced": {
         date: {
-          start: today.toISOString(), // task edit time?
+          start: moment().toISOString(), // task edit time?
         },
       },
     },
@@ -496,6 +496,14 @@ export async function main() {
   // RN -> Client sync
   await syncTasksWithClient(RNTasksFiltered)
   console.log("Finished")
+}
+
+for (let i = 0; i < process.argv.length; i++) {
+  switch (process.argv[i]) {
+    case "start":
+      main()
+      break
+  }
 }
 
 /*
