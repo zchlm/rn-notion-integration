@@ -2,9 +2,9 @@ import * as cron from "cron"
 import { main } from "./index"
 
 const job = new cron.CronJob(
-  "*/2 * * * *",
+  "*/1 * * * *",
   async function () {
-    console.log("You will see this message every 2 minutes")
+    console.log("You will see this message every minute")
     await main()
   },
   null,
