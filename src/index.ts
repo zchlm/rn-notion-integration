@@ -6,7 +6,7 @@ import {
 } from "./utils"
 import { Client as NotionClient } from "@notionhq/client"
 import moment from "moment"
-// import util from "util"
+import util from "util"
 import {
   clientBotUserID,
   clientDatabaseId,
@@ -484,8 +484,8 @@ export async function main() {
   // RN tasks that have been updated
   const RNTasksFiltered = filterTasks(rationalTasks)
 
-  // console.log(util.inspect(clientTasksFiltered, false, null, true))
-  // console.log(util.inspect(RNTasksFiltered, false, null, true))
+  console.log(util.inspect(clientTasksFiltered, false, null, true))
+  console.log(util.inspect(RNTasksFiltered, false, null, true))
 
   // Client -> RN sync
   await syncTasksWithRN(clientTasksFiltered)
@@ -497,6 +497,8 @@ export async function main() {
   await syncTasksWithClient(RNTasksFiltered)
   console.log("Finished")
 }
+
+// todo: add debugging
 
 for (let i = 0; i < process.argv.length; i++) {
   switch (process.argv[i]) {
