@@ -29,8 +29,6 @@ const notion = new NotionClient()
 // todo: within minute changes and sync doesn't work
 // todo: solution: if they are same time, full update and set last sync to time + 1 minute or something else and we need another conditional to filter out!
 
-let full_sync = false
-
 function filterTasks(tasks) {
   // console.log("-- Filter tasks -- ")
   return tasks.filter((task) => {
@@ -50,11 +48,13 @@ function filterTasks(tasks) {
         return false
       }
 
+      // todo: need to reset this to false
+
       // console.log(d2.diff(d1, "minutes"))
       // if (d2.diff(d1, "minutes") <= 1) {
       if (d2.isSame(d1)) {
         // Full sync this time
-        full_sync = true
+        task.full_sync = true
         return true
       }
     }
@@ -183,16 +183,33 @@ async function syncTasksWithRN(clientTasks) {
   }
   // console.log(util.inspect(rationalTasks, false, null, true))
 
-  // Last synced from client
-  await updatePageProps(notion, clientSecret, clientTasks, {
-    "Last Synced": {
-      date: {
-        start: full_sync
-          ? moment().utc().add(1, "minute").toISOString()
-          : moment().utc().toISOString(),
+  // Full sync
+  await updatePageProps(
+    notion,
+    clientSecret,
+    clientTasks.filter((t) => t.full_sync),
+    {
+      "Last Synced": {
+        date: {
+          start: moment().utc().add(1, "minute").toISOString(),
+        },
       },
-    },
-  })
+    }
+  )
+
+  // Last synced from client
+  await updatePageProps(
+    notion,
+    clientSecret,
+    clientTasks.filter((t) => !t.full_sync),
+    {
+      "Last Synced": {
+        date: {
+          start: moment().utc().toISOString(),
+        },
+      },
+    }
+  )
 }
 
 async function syncTasksWithClient(RNTasks) {
@@ -336,15 +353,32 @@ async function syncTasksWithClient(RNTasks) {
     }
   }
 
-  await updatePageProps(notion, rationalSecret, RNTasks, {
-    "Last Synced": {
-      date: {
-        start: full_sync
-          ? moment().utc().add(1, "minute").toISOString()
-          : moment().utc().toISOString(),
+  // Full sync
+  await updatePageProps(
+    notion,
+    rationalSecret,
+    RNTasks.filter((t) => t.full_sync),
+    {
+      "Last Synced": {
+        date: {
+          start: moment().utc().add(1, "minute").toISOString(),
+        },
       },
-    },
-  })
+    }
+  )
+
+  await updatePageProps(
+    notion,
+    rationalSecret,
+    RNTasks.filter((t) => !t.full_sync),
+    {
+      "Last Synced": {
+        date: {
+          start: moment().utc().toISOString(),
+        },
+      },
+    }
+  )
 }
 
 async function createTaskRN(notion: NotionClient, task) {
@@ -500,6 +534,9 @@ export async function main() {
 
   // Client tasks that have been updated
   const clientTasksFiltered = filterTasks(clientTasks)
+
+  // todo: reset full sync flag. Or handle both
+
   // RN tasks that have been updated
   const RNTasksFiltered = filterTasks(rationalTasks)
 

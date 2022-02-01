@@ -172,6 +172,10 @@ export async function fetchRationalTasksLinked(
 }
 
 export async function updatePageProps(notion, secret, tasks, props) {
+  if (tasks.length === 0) {
+    return null
+  }
+
   const responses = []
   for (const task of tasks) {
     const r = await notion.pages.update({
