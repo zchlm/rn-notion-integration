@@ -31,7 +31,7 @@ const notion = new NotionClient()
 
 function mapTasks(tasks) {
   return tasks.map((task) => {
-    if (!task.properties["Last Synced"]) {
+    if (!task.properties["Last Synced"].date) {
       return task
     }
 
