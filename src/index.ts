@@ -31,12 +31,16 @@ const notion = new NotionClient()
 
 function mapTasks(tasks) {
   return tasks.map((task) => {
+    if (!task.properties["Last Synced"]) {
+      return task
+    }
+
     const d1 = moment(task.properties["Last Synced"].date.start).utc()
     const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
     const nowDiff = d2.diff(moment(), "minutes")
 
     if (d2.isSame(d1) && nowDiff < 0 && nowDiff >= -2) {
-      task.sync_again = true // This is mutating the task object
+      task.sync_again = true
     }
     return task
   })
@@ -49,10 +53,9 @@ function filterTasks(tasks) {
   return tasks.filter((task) => {
     // console.log(util.inspect(task.properties, false, null, true))
 
-    // @ts-ignore
-    // if (!task.properties["Last Synced"].date) {
-    //   return true
-    // }
+    if (!task.properties["Last Synced"].date) {
+      return true
+    }
 
     const d1 = moment(task.properties["Last Synced"].date.start).utc()
     const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
