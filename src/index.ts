@@ -182,8 +182,6 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
         cTask.properties["ID"].formula.string
       )
     })
-    // console.log(util.inspect(RNTask, false, null, true))
-    // return
 
     // Find Rational block id to update
     // const { results: rationalTasks } = await notion.databases.query({
@@ -203,7 +201,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
       rationalSecret,
       RNTask.id,
       false,
-      false
+      true
     )
 
     const briefRNBlock = blocksRN.find((b) => {
