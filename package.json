@@ -6,16 +6,19 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "tsc && node dist/index.js start",
+    "create-db": "tsc && node dist/db.js",
     "build": "tsc",
     "start-cron": "node dist/queue.js",
     "lint": "eslint . --ext .ts"
   },
   "dependencies": {
     "@notionhq/client": "^0.4.12",
+    "better-sqlite3": "^7.5.0",
     "cron": "^1.8.2",
     "moment": "^2.29.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.4.2",
     "@types/cron": "^1.7.3",
     "@typescript-eslint/eslint-plugin": "^5.9.1",
     "@typescript-eslint/parser": "^5.9.1",

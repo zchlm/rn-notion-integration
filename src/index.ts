@@ -1,9 +1,4 @@
-import {
-  fetchClientTasksLinked,
-  fetchRationalTasksLinked,
-  getBlockChildren,
-  updatePageProps,
-} from "./utils"
+import { fetchRationalTasksLinked, getBlockChildren } from "./utils"
 import { Client as NotionClient } from "@notionhq/client"
 import moment from "moment"
 import util from "util"
@@ -15,9 +10,14 @@ import {
   rationalSecret,
   rationalTaskTemplatePageId,
 } from "./config"
+import Database from "better-sqlite3"
 
 // Construct our notion API client instance
 const notion = new NotionClient()
+
+// Setup database
+
+// const db = new Database("notion.db", { verbose: console.log })
 
 // https://www.notion.so/<workspace>/<database id>?v=...
 
@@ -29,35 +29,63 @@ const notion = new NotionClient()
 // todo: within minute changes and sync doesn't work
 // todo: solution: if they are same time, full update and set last sync to time + 1 minute or something else and we need another conditional to filter out!
 
+function mapTasks(tasks) {
+  return tasks.map((task) => {
+    const d1 = moment(task.properties["Last Synced"].date.start).utc()
+    const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
+    const nowDiff = d2.diff(moment(), "minutes")
+
+    if (d2.isSame(d1) && nowDiff < 0 && nowDiff >= -2) {
+      task.sync_again = true // This is mutating the task object
+    }
+    return task
+  })
+}
+// Tasks that need syncing!
 function filterTasks(tasks) {
   // console.log("-- Filter tasks -- ")
+  // map
+
   return tasks.filter((task) => {
     // console.log(util.inspect(task.properties, false, null, true))
 
     // @ts-ignore
-    if (!task.properties["Last Synced"].date) {
+    // if (!task.properties["Last Synced"].date) {
+    //   return true
+    // }
+
+    const d1 = moment(task.properties["Last Synced"].date.start).utc()
+    const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
+
+    // console.log(d2, d1)
+    // console.log(d2.isSame(d1))
+    // console.log(d2.diff(d1, "minutes"))
+    // const nowDiff = d2.diff(moment(), "minutes")
+    // console.log(nowDiff)
+    if (task.sync_again) {
       return true
-    } else {
-      // @ts-ignore
-      const d1 = moment(task.properties["Last Synced"].date.start).utc()
-      // @ts-ignore
-      const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
-
-      console.log(d2.diff(d1, "minutes"))
-      if (d2.diff(d1, "minutes") == -1) {
-        return false
-      }
-
-      // todo: need to reset this to false
-
-      // console.log(d2.diff(d1, "minutes"))
-      // if (d2.diff(d1, "minutes") <= 1) {
-      if (d2.isSame(d1)) {
-        // Full sync this time
-        task.full_sync = true
-        return true
-      }
     }
+
+    if (d2.diff(d1, "minutes") == -1 || d2.isSame(d1)) {
+      //   // todo: now filter tasks that aren't synced when updating time!
+      //   task.synced = true
+      //   return true
+      return false
+    }
+
+    // return true
+
+    // todo: issue lies in filtering
+    // todo: need to reset this to false
+
+    // console.log(d2.diff(moment(), "minutes"))
+    // console.log(d2.diff(d1, "minutes"))
+    // if (d2.diff(d1, "minutes") <= 1) {
+
+    // else if (d2.isSame(d1)) {
+    //   // task.check_contents = true // This is mutating the task object
+    //   return true
+    // }
 
     return true
   })
@@ -83,26 +111,79 @@ async function retrieveClientTasks(notion: NotionClient) {
   return tasks ? tasks : null
 }
 
-async function syncTasksWithRN(clientTasks) {
-  if (clientTasks.length < 1) {
-    return
-  }
-
+/*
+ * clientTasks: Tasks that have changed since last sync
+ * RNTasks: Tasks that we sync to
+ * */
+async function syncTasksWithRN(clientTasks, RNTasks) {
   // Fetch all tasks from the RN database
-  const rationalTasks = await fetchRationalTasksLinked(notion, clientTasks)
+  // const rationalTasks = await fetchRationalTasksLinked(notion, clientTasks)
 
-  for (const task of clientTasks) {
+  // console.log(util.inspect(clientTasks, false, null, true))
+  // console.log(util.inspect(RNTasks, false, null, true))
+  // return
+
+  // Loop through each client task
+  // if (false) {
+
+  for (const cTask of clientTasks) {
+    // // Get client task children
+    // const blocksCTask = await getBlockChildren(
+    //   notion,
+    //   clientSecret,
+    //   cTask.id,
+    //   true,
+    //   true
+    // )
+
+    // const dBlock = db
+    //   .prepare("SELECT data FROM blocks WHERE id = ?")
+    //   .pluck()
+    //   .get(cTask.id)
+    //
+    // // This task has same last edit and sync time
+    // if (dBlock) {
+    //   // Check child block length to see if changed
+    //   // SKip item when nothing has changed
+    //   if (cTask.check_contents && dBlock === JSON.stringify(blocksCTask)) {
+    //     continue
+    //   }
+    //
+    //   // todo: update
+    //   // const update = db
+    //   //   .prepare("INSERT INTO blocks (id, data) VALUES (?, json(?))")
+    //   //   .run(cTask.id, JSON.stringify(blocksCTask))
+    // } else {
+    //   // Always insert task into database
+    //   const insert = db
+    //     .prepare("INSERT INTO blocks (id, data) VALUES (?, json(?))")
+    //     .run(cTask.id, JSON.stringify(blocksCTask))
+    // }
+
+    // todo: do below, only if task has same time!
+
+    // console.log(dBlock)
+    // console.log(util.inspect(blocksCTask, false, null, true))
+
+    //
+    // const stmt = db.prepare("SELECT data FROM blocks").get()
+    // console.log(stmt)
+    // return
+    // Check if contents have changed sync last sync
+
     // Update task in RN
 
     // Need to match with RN Tasks
-    const RNTask = rationalTasks.find((rTask) => {
+    const RNTask = RNTasks.find((task) => {
       return (
         // @ts-ignore
-        rTask.properties["Client Task ID"].rich_text[0].plain_text ===
+        task.properties["Client Task ID"].rich_text[0].plain_text ===
         // @ts-ignore
-        task.properties["ID"].formula.string
+        cTask.properties["ID"].formula.string
       )
     })
+    // console.log(util.inspect(RNTask, false, null, true))
+    // return
 
     // Find Rational block id to update
     // const { results: rationalTasks } = await notion.databases.query({
@@ -122,14 +203,12 @@ async function syncTasksWithRN(clientTasks) {
       rationalSecret,
       RNTask.id,
       false,
-      true
+      false
     )
 
     const briefRNBlock = blocksRN.find((b) => {
       return b.type === "toggle" && b.toggle.text[0].plain_text.match(/Brief/)
     })
-
-    // console.log(util.inspect(briefRNBlock, false, null, true))
 
     // Delete brief toggle children
     if (briefRNBlock.toggle && briefRNBlock.toggle.children) {
@@ -147,7 +226,7 @@ async function syncTasksWithRN(clientTasks) {
     const blocksClient = await getBlockChildren(
       notion,
       clientSecret,
-      task.id,
+      cTask.id,
       true,
       true
     )
@@ -180,82 +259,121 @@ async function syncTasksWithRN(clientTasks) {
       // @ts-ignore
       children: briefClientBlock.toggle.children,
     })
-  }
-  // console.log(util.inspect(rationalTasks, false, null, true))
 
-  // Full sync
-  await updatePageProps(
-    notion,
-    clientSecret,
-    clientTasks.filter((t) => t.full_sync),
-    {
-      "Last Synced": {
-        date: {
-          start: moment().utc().add(1, "minute").toISOString(),
-        },
-      },
-    }
-  )
+    console.log("Sync with RN", cTask, RNTask)
 
-  // Last synced from client
-  await updatePageProps(
-    notion,
-    clientSecret,
-    clientTasks.filter((t) => !t.full_sync),
-    {
-      "Last Synced": {
-        date: {
-          start: moment().utc().toISOString(),
-        },
-      },
-    }
-  )
-}
-
-async function syncTasksWithClient(RNTasks) {
-  if (RNTasks.length < 1) {
-    return
-  }
-
-  // Todo: can we re-use these?
-  const clientTasks = await fetchClientTasksLinked(notion, RNTasks)
-
-  // Todo: Can't send roll up field. Update progress field when they use 'Rollup' type. Create formula which references this rollup field.
-
-  for (const task of clientTasks) {
-    // Need to match with RN Tasks
-    const RNTask = RNTasks.find((rTask) => {
-      return (
-        // @ts-ignore
-        rTask.properties["Client Task ID"].rich_text[0].plain_text ===
-        // @ts-ignore
-        task.properties["ID"].formula.string
-      )
-    })
-
-    const propertiesToUpdate = ["Due Date", "Progress"]
-
-    // Update last synced as well
-    const propertySchemas = {
-      "Last Synced": {
-        date: {
-          start: moment().utc().toISOString(),
-        },
-      },
-    }
-
-    propertiesToUpdate.forEach((prop) => {
-      propertySchemas[prop] = {
-        ...RNTask.properties[prop],
-      }
-    })
-
+    // We also need to update client task last synced!
     await notion.pages.update({
-      page_id: task.id,
+      page_id: cTask.id,
       auth: clientSecret,
       // @ts-ignore
-      properties: propertySchemas,
+      properties: {
+        "Last Synced": {
+          date: {
+            start: moment().utc().add(1, "minute").toISOString(),
+            // cTask.sync_again
+            // ?
+            // : moment().utc().toISOString(),
+          },
+        },
+      },
     })
+
+    // Update rational task!
+    // todo: update property "Last Synced" to current time here!
+    console.log(`RN Full Sync: ${RNTask}`)
+    await notion.pages.update({
+      page_id: RNTask.id,
+      auth: rationalSecret,
+      // @ts-ignore
+      properties: {
+        "Last Synced": {
+          date: {
+            start: moment().utc().add(1, "minute").toISOString(),
+            // RNTask.sync_again
+            // ? moment().utc().add(0, "minute").toISOString()
+            // : moment().utc().toISOString(),
+          },
+        },
+      },
+    })
+  }
+
+  // } else {
+  //   // If there are no client tasks, we need to update RN tasks time to reflect
+  //   for (const task of RNTasks) {
+  //     await notion.pages.update({
+  //       page_id: task.id,
+  //       auth: rationalSecret,
+  //       // @ts-ignore
+  //       properties: {
+  //         "Last Synced": {
+  //           date: {
+  //             start: task.full_sync
+  //               ? moment().utc().add(1, "minute").toISOString()
+  //               : moment().utc().toISOString(),
+  //           },
+  //         },
+  //       },
+  //     })
+  //   }
+  // }
+
+  // Full sync
+  // await updatePageProps(
+  //   notion,
+  //   clientSecret,
+  //   clientTasks.filter((t) => t.full_sync),
+  //   {
+  //     "Last Synced": {
+  //       date: {
+  //         start: moment().utc().add(1, "minute").toISOString(),
+  //       },
+  //     },
+  //   }
+  // )
+
+  // Last synced from client
+  // await updatePageProps(
+  //   notion,
+  //   clientSecret,
+  //   clientTasks.filter((t) => !t.full_sync),
+  //   {
+  //     "Last Synced": {
+  //       date: {
+  //         start: moment().utc().toISOString(),
+  //       },
+  //     },
+  //   }
+  // )
+}
+
+async function syncTasksWithClient(RNTasks, clientTasks) {
+  // if (RNTasks.length < 1) {
+  //   return
+  // }
+
+  // Todo: can we re-use these?
+  // const clientTasks = await fetchClientTasksLinked(notion, RNTasks)
+
+  // Todo: Can't send roll up field. Update progress field when they use 'Rollup' type. Create formula which references this roll
+
+  // console.log(util.inspect(RNTasks, false, null, true))
+  // return
+
+  // if (RNTasks.length > 0) {
+  for (const RNTask of RNTasks) {
+    // Need to match with RN Tasks
+    const clientTask = clientTasks.find((cTask) => {
+      return (
+        // @ts-ignore
+        RNTask.properties["Client Task ID"].rich_text[0].plain_text ===
+        // @ts-ignore
+        cTask.properties["ID"].formula.string
+      )
+    })
+    // console.log(util.inspect(clientTask, false, null, true))
+    // return
 
     const blocksRN = await getBlockChildren(
       notion,
@@ -271,12 +389,14 @@ async function syncTasksWithClient(RNTasks) {
       )
     })
 
+    // todo: just realised same issue occurs.....
+
     if (deliverableRNBlock) {
       // Send deliverable back to client
       const blocksClient = await getBlockChildren(
         notion,
         clientSecret,
-        task.id,
+        clientTask.id,
         true,
         true
       )
@@ -329,7 +449,7 @@ async function syncTasksWithClient(RNTasks) {
         // Create toggle block
         await notion.blocks.children.append({
           auth: clientSecret,
-          block_id: task.id,
+          block_id: clientTask.id,
           // @ts-ignore
           children: [
             {
@@ -351,9 +471,73 @@ async function syncTasksWithClient(RNTasks) {
         })
       }
     }
-  }
 
-  // Full sync
+    // Update properties last
+    const propertiesToUpdate = ["Due Date", "Progress"]
+
+    console.log("Sync with client", clientTask, RNTask)
+    // Update Client time as we are changing it
+    const propertySchemas = {
+      "Last Synced": {
+        date: {
+          start: moment().utc().add(1, "minute").toISOString(),
+          // clientTask.sync_again
+          // ? moment().utc().add(1, "minute").toISOString()
+          // : moment().utc().toISOString(),
+        },
+      },
+    }
+
+    propertiesToUpdate.forEach((prop) => {
+      propertySchemas[prop] = {
+        ...RNTask.properties[prop],
+      }
+    })
+
+    await notion.pages.update({
+      page_id: clientTask.id,
+      auth: clientSecret,
+      // @ts-ignore
+      properties: propertySchemas,
+    })
+
+    // Also update RN sync time! As user has edited it!
+    await notion.pages.update({
+      page_id: RNTask.id,
+      auth: rationalSecret,
+      // @ts-ignore
+      properties: {
+        "Last Synced": {
+          date: {
+            start: moment().utc().add(1, "minute").toISOString(),
+            // RNTask.sync_again
+            // ?
+            // : moment().utc().toISOString(),
+          },
+        },
+      },
+    })
+  }
+  // }
+
+  // for (const task of clientTasks) {
+  //   await notion.pages.update({
+  //     page_id: task.id,
+  //     auth: clientSecret,
+  //     // @ts-ignore
+  //     properties: {
+  //       "Last Synced": {
+  //         date: {
+  //           start: task.full_sync
+  //             ? moment().utc().add(1, "minute").toISOString()
+  //             : moment().utc().toISOString(),
+  //         },
+  //       },
+  //     },
+  //   })
+  // }
+
+  /* // Full sync
   await updatePageProps(
     notion,
     rationalSecret,
@@ -378,7 +562,7 @@ async function syncTasksWithClient(RNTasks) {
         },
       },
     }
-  )
+  )*/
 }
 
 async function createTaskRN(notion: NotionClient, task) {
@@ -503,7 +687,15 @@ async function createTaskRN(notion: NotionClient, task) {
   // return
 }
 
+// todo: now keep track of blocks with database!
 export async function main() {
+  // const insert = db.prepare("INSERT INTO blocks (id, data) VALUES (?, ?)")
+  // insert.run("test")
+  //
+  // const stmt = db.prepare("SELECT data FROM blocks").get()
+  // console.log(stmt)
+  // return
+
   // todo: handle errors and write to error log
   const clientTasks = await retrieveClientTasks(notion)
 
@@ -532,25 +724,104 @@ export async function main() {
     }
   }
 
+  const cTasks = mapTasks(clientTasks)
+  const rTasks = mapTasks(rationalTasks)
+
   // Client tasks that have been updated
-  const clientTasksFiltered = filterTasks(clientTasks)
+  const clientTasksFiltered = filterTasks(cTasks)
+
+  // Tasks that are synced and need Last Synced time updated!
+  /*  const clientTasksSynced = clientTasks.filter((t) => {
+    // @ts-ignore
+    const d1 = moment(task.properties["Last Synced"].date.start).utc()
+    // @ts-ignore
+    const d2 = moment(task.properties["Last Edit"].last_edited_time).utc()
+    if (d2.diff(d1, "minutes") == -1) {
+      // todo: now filter tasks that aren't synced when updating time!
+      // task.synced = true
+      return true
+    }
+  })*/
 
   // todo: reset full sync flag. Or handle both
 
   // RN tasks that have been updated
-  const RNTasksFiltered = filterTasks(rationalTasks)
+  const RNTasksFiltered = filterTasks(rTasks)
 
-  console.log(util.inspect(clientTasksFiltered, false, null, true))
-  console.log(util.inspect(RNTasksFiltered, false, null, true))
+  // console.log(util.inspect(RNTasksFiltered, false, null, true))
+  // console.log(util.inspect(clientTasksFiltered, false, null, true))
+  // return
 
-  // Client -> RN sync
-  await syncTasksWithRN(clientTasksFiltered)
+  // Client task has changed. Sync client to RN
+  // todo: ok success!
+  await syncTasksWithRN(clientTasksFiltered, rTasks)
+  // return
+
+  // Filter and update last synced
+  // for (const task of RNTasksFiltered) {
+  //   // Now synced!
+  //   await notion.pages.update({
+  //     page_id: task.id,
+  //     auth: rationalSecret,
+  //     // @ts-ignore
+  //     properties: {
+  //       "Last Synced": {
+  //         date: {
+  //           start: moment().utc().add(1, "minute").toISOString(),
+  //         },
+  //       },
+  //     },
+  //   })
+  // }
 
   // todo Last edit and last sync will not work as we update the RN task.
   // todo What if we give leeway of 1-2 minutes?
 
-  // RN -> Client sync
-  await syncTasksWithClient(RNTasksFiltered)
+  // RN task has changed. Sync RN to client.
+  await syncTasksWithClient(RNTasksFiltered, cTasks)
+  // return
+
+  // Why can't we just update everything here?
+  /*
+  if (RNTasksFiltered.length <= 0) {
+    // We all synced!
+    for (const task of clientTasksFiltered) {
+      console.log("Syncing client" + task)
+      await notion.pages.update({
+        page_id: task.id,
+        auth: clientSecret,
+        // @ts-ignore
+        properties: {
+          "Last Synced": {
+            date: {
+              start: moment().utc().add(1, "minute").toISOString(),
+            },
+          },
+        },
+      })
+    }
+  }
+
+  if (clientTasksFiltered.length <= 0) {
+    for (const task of RNTasksFiltered) {
+      console.log("Syncing RN" + task)
+      await notion.pages.update({
+        page_id: task.id,
+        auth: rationalSecret,
+        // @ts-ignore
+        properties: {
+          "Last Synced": {
+            date: {
+              start: moment().utc().add(1, "minute").toISOString(),
+            },
+          },
+        },
+      })
+    }
+  }
+
+*/
+  // Filter and update last synced
   console.log("Finished")
 }
 
