@@ -10,14 +10,9 @@ import {
   rationalSecret,
   rationalTaskTemplatePageId,
 } from "./config"
-import Database from "better-sqlite3"
 
 // Construct our notion API client instance
 const notion = new NotionClient()
-
-// Setup database
-
-// const db = new Database("notion.db", { verbose: console.log })
 
 // https://www.notion.so/<workspace>/<database id>?v=...
 
