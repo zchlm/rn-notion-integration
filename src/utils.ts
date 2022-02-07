@@ -5,6 +5,7 @@ import {
   rationalDatabaseId,
   rationalSecret,
 } from "./config"
+import util from "util"
 
 export function cleanChildBlocks(blocks) {
   return (
@@ -40,18 +41,30 @@ export async function getBlockChildren(
     block_id: blockId,
   })
 
+  // console.log(util.inspect(blocks, false, null, true))
+
   const blocksWithChildren = await Promise.all(
     blocks
       .filter((b) => {
         // return !(b.type === "embed" && !b.embed.url);
-        return (
+        // todo: images aren't really supported if uploaded to notion
+        if (
           // @ts-ignore
-          b.type !== "child_database" &&
+          b.type === "child_database" ||
           // @ts-ignore
-          b.type !== "template" &&
+          b.type === "template" ||
           // @ts-ignore
-          (excludeEmbed ? b.type !== "embed" : true)
-        )
+          (excludeEmbed ? b.type === "embed" : false)
+        ) {
+          return false
+        }
+
+        // @ts-ignore
+        if (b.type === "image" && !b.image.file) {
+          return false
+        }
+
+        return true
       })
       .map(async (b) => {
         // @ts-ignore
@@ -66,7 +79,8 @@ export async function getBlockChildren(
 
           // @ts-ignore
           delete b.image.file
-          // console.log(b);
+
+          console.log(b)
         }
 
         // @ts-ignore
