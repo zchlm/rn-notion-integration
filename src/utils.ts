@@ -48,6 +48,8 @@ export async function getBlockChildren(
           // @ts-ignore
           b.type !== "child_database" &&
           // @ts-ignore
+          b.type !== "template" &&
+          // @ts-ignore
           (excludeEmbed ? b.type !== "embed" : true)
         )
       })
