@@ -405,16 +405,14 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
       })
 
       // Delete brief toggle children
-      if (
-        deliverableClientBlock &&
-        deliverableClientBlock.toggle &&
-        deliverableClientBlock.toggle.children
-      ) {
-        for (const block of deliverableClientBlock.toggle.children) {
-          await notion.blocks.delete({
-            auth: clientSecret,
-            block_id: block.id,
-          })
+      if (deliverableClientBlock && deliverableClientBlock.toggle) {
+        if (deliverableClientBlock.toggle.children) {
+          for (const block of deliverableClientBlock.toggle.children) {
+            await notion.blocks.delete({
+              auth: clientSecret,
+              block_id: block.id,
+            })
+          }
         }
 
         await notion.blocks.update({
