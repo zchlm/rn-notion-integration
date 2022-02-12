@@ -28,6 +28,14 @@ export function cleanChildBlocks(blocks) {
   )
 }
 
+export function timeout(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export function log(arg) {
+  console.log(util.inspect(arg, false, null, true))
+}
+
 export async function getBlockChildren(
   notion: NotionClient,
   secret: string,
@@ -40,8 +48,6 @@ export async function getBlockChildren(
     auth: secret,
     block_id: blockId,
   })
-
-  // console.log(util.inspect(blocks, false, null, true))
 
   const blocksWithChildren = await Promise.all(
     blocks
@@ -201,8 +207,6 @@ export async function updatePageProps(notion, secret, tasks, props) {
     })
 
     responses.push(r)
-
-    // console.log(util.inspect(response, false, null, true));
   }
 
   // todo: handle errors
