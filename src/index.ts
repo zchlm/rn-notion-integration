@@ -1,14 +1,6 @@
 import { fetchRationalTasksLinked, getBlockChildren } from "./utils"
 import { Client as NotionClient } from "@notionhq/client"
 import moment from "moment"
-import {
-  clientBotUserID,
-  clientDatabaseId,
-  clientSecret,
-  rationalDatabaseId,
-  rationalSecret,
-  rationalTaskTemplatePageId,
-} from "./config"
 
 // Construct our notion API client instance
 const notion = new NotionClient()
@@ -54,14 +46,14 @@ function filterTasks(tasks) {
 
 async function retrieveClientTasks(notion: NotionClient) {
   const { results: tasks } = await notion.databases.query({
-    auth: clientSecret,
-    database_id: clientDatabaseId,
+    auth: process.env.CLIENT_SECRET,
+    database_id: process.env.CLIENT_DATABASE_ID,
 
     filter: {
       and: [
         {
           property: "Assigned To",
-          people: { contains: clientBotUserID },
+          people: { contains: process.env.CLIENT_BOT_USER_ID },
         },
       ],
     },
@@ -86,7 +78,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
 
     const blocksRN = await getBlockChildren(
       notion,
-      rationalSecret,
+      process.env.RATIONAL_SECRET,
       RNTask.id,
       false,
       true
@@ -100,7 +92,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
     if (briefRNBlock.toggle && briefRNBlock.toggle.children) {
       for (const block of briefRNBlock.toggle.children) {
         await notion.blocks.delete({
-          auth: rationalSecret,
+          auth: process.env.RATIONAL_SECRET,
           block_id: block.id,
         })
       }
@@ -109,7 +101,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
     // Get brief block from client
     const blocksClient = await getBlockChildren(
       notion,
-      clientSecret,
+      process.env.CLIENT_SECRET,
       cTask.id,
       true,
       true
@@ -120,7 +112,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
     })
 
     await notion.blocks.update({
-      auth: rationalSecret,
+      auth: process.env.RATIONAL_SECRET,
       block_id: briefRNBlock.id,
       toggle: {
         text: [
@@ -138,7 +130,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
 
     // Append brief update to block
     await notion.blocks.children.append({
-      auth: rationalSecret,
+      auth: process.env.RATIONAL_SECRET,
       block_id: briefRNBlock.id,
       children: briefClientBlock.toggle.children,
     })
@@ -148,7 +140,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
     // We also need to update client task last synced!
     await notion.pages.update({
       page_id: cTask.id,
-      auth: clientSecret,
+      auth: process.env.CLIENT_SECRET,
       properties: {
         "Last Synced": {
           date: {
@@ -161,7 +153,7 @@ async function syncTasksWithRN(clientTasks, RNTasks) {
     // Update rational task!
     await notion.pages.update({
       page_id: RNTask.id,
-      auth: rationalSecret,
+      auth: process.env.RATIONAL_SECRET,
       properties: {
         "Last Synced": {
           date: {
@@ -187,7 +179,7 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
 
     const blocksRN = await getBlockChildren(
       notion,
-      rationalSecret,
+      process.env.RATIONAL_SECRET,
       RNTask.id,
       true,
       true
@@ -203,7 +195,7 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
       // Send deliverable back to client
       const blocksClient = await getBlockChildren(
         notion,
-        clientSecret,
+        process.env.CLIENT_SECRET,
         clientTask.id,
         true,
         true
@@ -221,14 +213,14 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
         if (deliverableClientBlock.toggle.children) {
           for (const block of deliverableClientBlock.toggle.children) {
             await notion.blocks.delete({
-              auth: clientSecret,
+              auth: process.env.CLIENT_SECRET,
               block_id: block.id,
             })
           }
         }
 
         await notion.blocks.update({
-          auth: clientSecret,
+          auth: process.env.CLIENT_SECRET,
           block_id: deliverableClientBlock.id,
           toggle: {
             text: [
@@ -248,14 +240,14 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
 
         // Append deliverables to block
         await notion.blocks.children.append({
-          auth: clientSecret,
+          auth: process.env.CLIENT_SECRET,
           block_id: deliverableClientBlock.id,
           children: deliverableRNBlock.toggle.children,
         })
       } else {
         // Create toggle block
         await notion.blocks.children.append({
-          auth: clientSecret,
+          auth: process.env.CLIENT_SECRET,
           block_id: clientTask.id,
           children: [
             {
@@ -298,14 +290,14 @@ async function syncTasksWithClient(RNTasks, clientTasks) {
 
     await notion.pages.update({
       page_id: clientTask.id,
-      auth: clientSecret,
+      auth: process.env.CLIENT_SECRET,
       properties: propertySchemas,
     })
 
     // Also update RN sync time! As user has edited it!
     await notion.pages.update({
       page_id: RNTask.id,
-      auth: rationalSecret,
+      auth: process.env.RATIONAL_SECRET,
       properties: {
         "Last Synced": {
           date: {
@@ -324,8 +316,8 @@ async function createTaskRN(notion: NotionClient, task) {
    * 3. Append brief (from client) and template blocks
    **/
   const page = await notion.pages.create({
-    auth: rationalSecret,
-    parent: { database_id: rationalDatabaseId },
+    auth: process.env.RATIONAL_SECRET,
+    parent: { database_id: process.env.RATIONAL_DATABASE_ID },
     properties: {
       "Client Task ID": {
         rich_text: [
@@ -355,7 +347,7 @@ async function createTaskRN(notion: NotionClient, task) {
 
   // Template requirements database
   await notion.databases.create({
-    auth: rationalSecret,
+    auth: process.env.RATIONAL_SECRET,
     parent: { page_id: page.id },
     title: [
       {
@@ -376,13 +368,13 @@ async function createTaskRN(notion: NotionClient, task) {
   })
 
   const templatePage = await notion.pages.retrieve({
-    auth: rationalSecret,
-    page_id: rationalTaskTemplatePageId,
+    auth: process.env.RATIONAL_SECRET,
+    page_id: process.env.RATIONAL_TASK_TEMPLATE_PAGE_ID,
   })
 
   const templateChildren = await getBlockChildren(
     notion,
-    rationalSecret,
+    process.env.RATIONAL_SECRET,
     templatePage.id,
     true,
     true,
@@ -391,7 +383,7 @@ async function createTaskRN(notion: NotionClient, task) {
 
   const blocks = await getBlockChildren(
     notion,
-    clientSecret,
+    process.env.CLIENT_SECRET,
     task.id,
     true,
     true
@@ -401,7 +393,7 @@ async function createTaskRN(notion: NotionClient, task) {
 
   // Append to page
   const res = await notion.blocks.children.append({
-    auth: rationalSecret,
+    auth: process.env.RATIONAL_SECRET,
     block_id: page.id,
     children: children,
   })

@@ -1,10 +1,4 @@
 import { Client as NotionClient } from "@notionhq/client"
-import {
-  clientDatabaseId,
-  clientSecret,
-  rationalDatabaseId,
-  rationalSecret,
-} from "./config"
 import util from "util"
 
 export function cleanChildBlocks(blocks) {
@@ -159,8 +153,8 @@ export async function fetchClientTasksLinked(
   }
 
   const { results: clientTasks } = await notion.databases.query({
-    auth: clientSecret,
-    database_id: clientDatabaseId,
+    auth: process.env.CLIENT_SECRET,
+    database_id: process.env.CLIENT_DATABASE_ID,
     filter: filters,
   })
 
@@ -185,8 +179,8 @@ export async function fetchRationalTasksLinked(
   }
 
   const { results: rationalTasks } = await notion.databases.query({
-    auth: rationalSecret,
-    database_id: rationalDatabaseId,
+    auth: process.env.RATIONAL_SECRET,
+    database_id: process.env.RATIONAL_DATABASE_ID,
     filter: filters,
   })
 
