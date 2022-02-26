@@ -2,6 +2,7 @@ import { fetchRationalTasksLinked, getBlockChildren } from "./utils"
 import { Client as NotionClient } from "@notionhq/client"
 import moment from "moment"
 
+console.log(process.env)
 // Construct our notion API client instance
 const notion = new NotionClient()
 
